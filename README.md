@@ -126,16 +126,14 @@ Replace the bracketed names. Roles are general, so adjust them to match how your
 
 | Member | Role | Responsibilities |
 |---|---|---|
-| [Name 1] | Project lead and research | Experimental design, freeze protocol, evaluation plan, documentation, pitch and presentation |
-| [Name 2] | Frontend developer | User interface, ACCEPT / REVIEW / DEFER display, explanation and audit views, demo flow |
-| [Name 3] | Backend developer | APIs and application logic, model serving, routing integration, logging, deployment |
-| [Name 4] | Data engineer | MIMIC-IV cohort construction, 24-hour feature extraction, leakage audit, patient-level splits |
-| [Name 5] | ML engineer | Model training and selection, calibration, SHAP, ERS and perturbation tests, evaluation, imaging module |
+| Anshita | Project lead and research | Experimental design, freeze protocol, evaluation plan, documentation, pitch and presentation |
+| Sania | Backend developer | APIs and application logic, model serving, routing integration, logging, deployment |
+| Deepank | ML engineer | Model training and selection, calibration, SHAP, ERS and perturbation tests, evaluation, imaging module |
+| Mridul | Data engineer | MIMIC-IV cohort construction, 24-hour feature extraction, leakage audit, patient-level splits |
+| Dhruv | Frontend developer | User interface, ACCEPT / REVIEW / DEFER display, explanation and audit views, demo flow |
 
-## License
 
-[Choose a license, for example MIT or Apache-2.0, and add a LICENSE file.]
 
 ## Acknowledgements
 
-Built on MIMIC-IV, provided through PhysioNet. Please cite the MIMIC-IV dataset and PhysioNet according to their current citation guidance.
+Built on MIMIC-IV dataset, provided through PhysioNet.
