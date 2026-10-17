@@ -127,6 +127,25 @@ class ResourceAction(Base):
     performed_by:Mapped[str]=mapped_column(ForeignKey('users.id'))
     created_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utc)
 
+class AmbulanceLocation(Base):
+    """A deliberately small, append-only location history for a single case.
+
+    Location is operational data, never used to select a destination or calculate
+    a clinical recommendation.
+    """
+    __tablename__='ambulance_locations'
+    id:Mapped[str]=mapped_column(String,primary_key=True,default=uid)
+    case_id:Mapped[str]=mapped_column(ForeignKey('cases.id'),index=True)
+    latitude:Mapped[float]=mapped_column()
+    longitude:Mapped[float]=mapped_column()
+    accuracy_meters:Mapped[float|None]=mapped_column(nullable=True)
+    speed_mps:Mapped[float|None]=mapped_column(nullable=True)
+    heading_degrees:Mapped[float|None]=mapped_column(nullable=True)
+    reported_at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=utc,index=True)
+    created_by:Mapped[str]=mapped_column(ForeignKey('users.id'))
+
+Index('ix_ambulance_location_case_reported',AmbulanceLocation.case_id,AmbulanceLocation.reported_at)
+
 class Event(Base):
     __tablename__='events'
     sequence:Mapped[int]=mapped_column(Integer,primary_key=True,autoincrement=True)

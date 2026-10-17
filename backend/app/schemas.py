@@ -54,3 +54,10 @@ class RadioDispatchIn(BaseModel):
 class DoctorDirectiveIn(BaseModel):
     directive:str=Field(min_length=2,max_length=1000)
     priority:Literal['standard','urgent','stat']='urgent'
+
+class AmbulanceLocationIn(BaseModel):
+    latitude:float=Field(ge=-90,le=90)
+    longitude:float=Field(ge=-180,le=180)
+    accuracy_meters:float|None=Field(default=None,ge=0,le=100000)
+    speed_mps:float|None=Field(default=None,ge=0,le=150)
+    heading_degrees:float|None=Field(default=None,ge=0,lt=360)

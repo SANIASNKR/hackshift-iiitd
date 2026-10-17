@@ -176,3 +176,16 @@ def test_hinglish_extraction_and_radio_dispatch(client,login):
     disp=client.post(f"/api/cases/{c['id']}/radio-dispatch",headers=p,json={'message':'Doctor sahab, ICU bed ready rakhiye!','channel':'Priority EMS-108','language':'hinglish','audio_simulated':True,'urgency':'immediate_critical'})
     assert disp.status_code==201,disp.text
     assert disp.json()['status']=='transmitted'
+
+def test_ambulance_location_is_persisted_scoped_and_emits_event(client,login):
+    param=login(client);north=login(client,'north');river=login(client,'river')
+    case=new_case(client,param)
+    update=client.post(f"/api/cases/{case['id']}/ambulance-location",headers=param,json={'latitude':12.9716,'longitude':77.5946,'accuracy_meters':8.2,'speed_mps':12.5,'heading_degrees':90})
+    assert update.status_code==201,update.text
+    assert update.json()['latitude']==12.9716
+    detail=client.get(f"/api/cases/{case['id']}",headers=north)
+    assert detail.status_code==200 and detail.json()['ambulance_location']['longitude']==77.5946
+    assert any(e['event_type']=='ambulance.location_updated' for e in detail.json()['events'])
+    assert client.get(f"/api/cases/{case['id']}",headers=river).status_code==403
+    invalid=client.post(f"/api/cases/{case['id']}/ambulance-location",headers=param,json={'latitude':91,'longitude':77})
+    assert invalid.status_code==422
