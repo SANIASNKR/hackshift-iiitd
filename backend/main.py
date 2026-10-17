@@ -45,7 +45,15 @@ async def lifespan(app):
     try:await task
     except asyncio.CancelledError:pass
 app=FastAPI(title='AyuStream AI — Synthetic Demo API',version='0.1.0',description='Emergency coordination demonstration; NOT clinically validated or intended for live emergencies.',lifespan=lifespan)
-origins=[origin.strip() for origin in os.getenv('CORS_ORIGINS','http://localhost:5173,http://127.0.0.1:5173').split(',') if origin.strip()]
+
+origins = [
+    origin.strip()
+    for origin in os.getenv(
+        'CORS_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173,https://ayustream-frontend.onrender.com'
+    ).split(',')
+    if origin.strip()
+]
 app.add_middleware(CORSMiddleware,allow_origins=origins,allow_credentials=True,allow_methods=['*'],allow_headers=['*'])
 app.include_router(cases);app.include_router(coordination);app.include_router(operations)
 
