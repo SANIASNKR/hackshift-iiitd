@@ -542,12 +542,12 @@ export function Simulator() {
             </div>
 
             <button
-              className="btn btn-secondary w-full mt-4 text-xs flex items-center justify-center gap-2 py-2"
+              className="btn btn-primary bg-brand hover:bg-brand-600 text-white w-full mt-4 text-xs flex items-center justify-center gap-2 py-2.5 font-bold shadow-xs transition active:scale-[0.98]"
               disabled={busy}
               onClick={() => run(s.id)}
             >
-              <FlaskConical size={14} className="text-brand" />
-              <span>Trigger Scenario</span>
+              <FlaskConical size={14} />
+              <span>Trigger Chaos Scenario</span>
             </button>
           </div>
         ))}
