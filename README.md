@@ -1,5 +1,7 @@
 # AyuStream AI — Pre-Hospital Emergency Coordination (Synthetic Demonstration)
 
+https://ayustream-frontend.onrender.com 
+
 A full-stack **hackathon demonstration** for paramedic handovers, hospital capability screening, explicit acceptance, confirmed destinations, resource reservations and persisted WebSocket events.
 
 > **Safety:** This software is **not** clinically validated, not connected to real hospitals, and **must not be used for real patients, dispatch, treatment, routing, or emergency decisions**. Fictional hospitals and synthetic patient records only. Follow established emergency radio/telephone protocols for real communication and any network interruption.
