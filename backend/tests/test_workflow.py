@@ -207,3 +207,29 @@ def test_microphone_audio_upload_transcription(client,login):
     assert res3.status_code==200,res3.text
     assert res3.json()['transcript']=='Patient found unconscious near highway'
 
+
+def test_open_route_api(client,login):
+    p=login(client);coord=login(client,'coordinator')
+    c=new_case(client,p)
+    # Test standalone open route calculation
+    route_calc=client.get('/api/routes/open-route?origin_lat=12.9716&origin_lon=77.5946&dest_lat=12.9784&dest_lon=77.6408',headers=coord)
+    assert route_calc.status_code==200,route_calc.text
+    calc_data=route_calc.json()
+    assert calc_data['status']=='ok'
+    assert calc_data['distance_km']>0
+    assert calc_data['duration_minutes']>0
+    assert 'openstreetmap.org/directions' in calc_data['external_directions_url']
+    assert len(calc_data['steps'])>0
+
+    # Test case-specific open route calculation
+    case_route=client.get(f"/api/cases/{c['id']}/open-route",headers=p)
+    assert case_route.status_code==200,case_route.text
+    case_data=case_route.json()
+    assert case_data['status']=='ok'
+    assert case_data['case_id']==c['id']
+    assert case_data['hospital_id']=='HOSP-001'
+    assert case_data['distance_km']>0
+    assert case_data['duration_minutes']>0
+    assert len(case_data['steps'])>0
+
+

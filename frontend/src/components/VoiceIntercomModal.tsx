@@ -441,41 +441,41 @@ export default function VoiceIntercomModal({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50 px-3 sm:px-4 pt-2 gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex border-b border-white/10 bg-[#0C2331] px-3 sm:px-5 pt-2 gap-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setTab('radio')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl shrink-0 whitespace-nowrap transition-all ${
               tab === 'radio'
-                ? 'bg-white text-teal-800 border-t-2 border-teal-600 shadow-sm'
-                : 'text-slate-600 hover:text-ink hover:bg-slate-100'
+                ? 'bg-slate-900 text-teal-300 border-t-2 border-teal-400 shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Radio size={16} />
+            <Radio size={16} className={tab === 'radio' ? 'text-teal-400' : 'text-slate-400'} />
             Walkie-Talkie Radio Intercom
           </button>
           <button
             onClick={() => setTab('hotline')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl shrink-0 whitespace-nowrap transition-all ${
               tab === 'hotline'
-                ? 'bg-white text-teal-800 border-t-2 border-teal-600 shadow-sm'
-                : 'text-slate-600 hover:text-ink hover:bg-slate-100'
+                ? 'bg-slate-900 text-teal-300 border-t-2 border-teal-400 shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Phone size={16} />
+            <Phone size={16} className={tab === 'hotline' ? 'text-teal-400' : 'text-slate-400'} />
             Direct ER Doctor Hotline
             {callState === 'connected' && (
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
             )}
           </button>
           <button
             onClick={() => setTab('contacts')}
             className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl shrink-0 whitespace-nowrap transition-all ${
               tab === 'contacts'
-                ? 'bg-white text-teal-800 border-t-2 border-teal-600 shadow-sm'
-                : 'text-slate-600 hover:text-ink hover:bg-slate-100'
+                ? 'bg-slate-900 text-teal-300 border-t-2 border-teal-400 shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-white/10'
             }`}
           >
-            <UserCheck size={16} />
+            <UserCheck size={16} className={tab === 'contacts' ? 'text-teal-400' : 'text-slate-400'} />
             Emergency Speed Dial & Contacts
           </button>
         </div>
@@ -892,12 +892,15 @@ export default function VoiceIntercomModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="bg-[#0C2331] border-t border-white/10 p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-300">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span>Encrypted Pre-Hospital Link · National 108 Emergency Network</span>
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-medium text-slate-200">Encrypted Pre-Hospital Link · National 108 Emergency Network</span>
           </div>
-          <button onClick={onClose} className="btn btn-secondary py-1.5 px-4 text-xs">
+          <button
+            onClick={onClose}
+            className="rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 px-4 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+          >
             Close Console
           </button>
         </div>

@@ -8,6 +8,7 @@ export type Acceptance={id:string;case_id:string;hospital_id:string;status:strin
 export type Resource={id:string;hospital_id:string;type:string;state:string;case_id:string|null};
 export type AmbulanceLocation={id:string;case_id:string;latitude:number;longitude:number;accuracy_meters:number|null;speed_mps:number|null;heading_degrees:number|null;reported_at:string;created_by:string};
 export type CaseDetails={case:Case;reports:Report[];observations:{id:string;field:string;value:string;unit:string|null;source:string;verification:string;created_at:string}[];conflicts:{id:string;field:string;left_value:string;right_value:string;left_source:string;right_source:string;resolved:boolean;resolution:string|null}[];acceptances:Acceptance[];destination_history:{id:string;to_hospital_id:string;created_at:string;reason:string}[];ambulance_location:AmbulanceLocation|null;location_history:AmbulanceLocation[];events:EventData[]};
+export type OpenRouteData={status:string;provider:string;case_id?:string;hospital_id?:string;hospital_name?:string;hospital_area?:string;origin:{latitude:number;longitude:number;label:string};destination:{latitude:number;longitude:number;name?:string;label?:string;area?:string};distance_km:number;duration_minutes:number;external_directions_url:string;steps:string[];geometry?:unknown};
 export const BASE=(import.meta.env.VITE_API_URL||'').replace(/\/+$/,'');
 export const getToken=()=>localStorage.getItem('ayu-demo-token')||'';
 export async function api<T=unknown>(path:string,init:RequestInit={}):Promise<T>{

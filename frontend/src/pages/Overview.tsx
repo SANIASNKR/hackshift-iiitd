@@ -45,7 +45,7 @@ export default function Overview() {
   return (
     <div className="space-y-6">
       {/* Real-Time Operational Fleet Banner */}
-      <div className="card p-4 sm:p-5 bg-gradient-to-r from-navy via-navy-light to-navy text-white border-0 shadow-elevated relative overflow-hidden">
+      <div style={{ backgroundColor: '#142B3B' }} className="card p-4 sm:p-5 bg-gradient-to-r from-navy via-navy-light to-navy text-white border-0 shadow-elevated relative overflow-hidden">
         {/* Subtle background ambient mesh */}
         <div className="absolute -right-10 -bottom-10 w-60 h-60 bg-brand/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute left-1/3 -top-10 w-40 h-40 bg-teal-400/10 rounded-full blur-2xl pointer-events-none" />

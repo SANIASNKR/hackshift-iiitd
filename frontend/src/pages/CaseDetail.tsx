@@ -386,24 +386,24 @@ export default function CaseDetail() {
       </div>
 
       {/* Emergency Quick Radio Intercom Bar */}
-      <div className="card p-4 bg-navy text-white border-navy-light">
+      <div style={{ backgroundColor: '#142B3B' }} className="card p-4 sm:p-5 bg-navy text-white border-0 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
-            <Radio size={15} className="text-brand-light animate-pulse" />
-            <span className="text-xs font-bold text-white">Emergency Voice & Radio Dispatch Bar</span>
-            <span className="text-[10px] bg-brand text-white px-2 py-0.5 rounded font-semibold">
+            <Radio size={16} className="text-teal-300 animate-pulse" />
+            <span className="text-xs sm:text-sm font-bold text-white tracking-tight">Emergency Voice & Radio Dispatch Bar</span>
+            <span className="text-[10px] bg-brand text-white px-2 py-0.5 rounded font-semibold uppercase tracking-wider">
               1-Tap Transmit
             </span>
           </div>
           <button
             onClick={() => setVoiceModalOpen(true)}
-            className="text-xs text-brand-light hover:underline font-medium"
+            className="text-xs text-teal-300 hover:text-white hover:underline font-semibold flex items-center gap-1"
           >
             Open Full Intercom & Doctor Hotline →
           </button>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-2">
+        <div className="grid sm:grid-cols-3 gap-2.5">
           {[
             {
               title: '🚨 STEMI Alert',
@@ -422,13 +422,13 @@ export default function CaseDetail() {
               key={idx}
               onClick={() => handleQuickRadioTransmit(preset.text)}
               disabled={busy}
-              className="text-left rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 p-2.5 transition-colors"
+              className="text-left rounded-xl bg-[#1B364A] hover:bg-[#23455E] border border-white/15 p-3 transition active:scale-[0.99] shadow-sm"
             >
-              <div className="flex items-center justify-between text-xs font-semibold text-white mb-1">
+              <div className="flex items-center justify-between text-xs font-bold text-white mb-1.5">
                 <span>{preset.title}</span>
-                <Volume2 size={13} className="text-brand-light" />
+                <Volume2 size={14} className="text-teal-300" />
               </div>
-              <p className="text-[11px] text-slate-300 line-clamp-2 leading-relaxed">
+              <p className="text-[11.5px] text-slate-200 line-clamp-2 leading-relaxed">
                 "{preset.text}"
               </p>
             </button>

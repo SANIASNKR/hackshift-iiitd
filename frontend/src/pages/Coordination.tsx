@@ -35,6 +35,7 @@ import {
   Hospital,
   Acceptance,
   Resource,
+  OpenRouteData,
   pretty,
   short
 } from '../lib/api';
@@ -74,6 +75,7 @@ export function SmartRoute() {
   const [cases, setCases] = useState<Case[]>([]);
   const [data, setData] = useState<CaseDetails | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
+  const [routeInfo, setRouteInfo] = useState<OpenRouteData | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [busy, setBusy] = useState(false);
@@ -93,6 +95,9 @@ export function SmartRoute() {
       api<{ matches: Match[] }>('/cases/' + id + '/matches')
         .then(r => setMatches(r.matches))
         .catch(e => setError(e.message));
+      api<OpenRouteData>('/cases/' + id + '/open-route')
+        .then(setRouteInfo)
+        .catch(() => setRouteInfo(null));
     }
   };
 
@@ -424,6 +429,69 @@ export function SmartRoute() {
                 </div>
               )}
             </div>
+
+            {/* Open Route API Telemetry & Navigation */}
+            {routeInfo && (
+              <div className="card p-4 sm:p-5 bg-gradient-to-br from-white to-teal-50/40 border border-teal-200/80 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-teal-100">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-teal-600 text-white shadow-xs">
+                      <Route size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-bold text-charcoal">OpenRoute Telemetry & Transit Guidance</h4>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                          OSRM Engine
+                        </span>
+                      </div>
+                      <p className="text-xs text-slateText mt-0.5">
+                        Route to: <strong>{routeInfo.destination.name || routeInfo.hospital_name}</strong>
+                      </p>
+                    </div>
+                  </div>
+
+                  <a
+                    href={routeInfo.external_directions_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-secondary text-xs flex items-center gap-1.5 py-1.5 px-3 bg-white font-semibold text-teal-800 border-teal-200 hover:bg-teal-50"
+                  >
+                    <span>Open Navigation Map</span>
+                    <ExternalLink size={12} className="text-slate-400" />
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 text-xs">
+                  <div className="p-2.5 rounded-lg bg-white border border-teal-100">
+                    <span className="text-slateText block text-[11px]">Calculated Distance</span>
+                    <strong className="text-sm font-bold text-charcoal block mt-0.5">{routeInfo.distance_km} km</strong>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white border border-teal-100">
+                    <span className="text-slateText block text-[11px]">Emergency Transit ETA</span>
+                    <strong className="text-sm font-bold text-teal-700 block mt-0.5">~{routeInfo.duration_minutes} Minutes</strong>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-white border border-teal-100 col-span-2 sm:col-span-1">
+                    <span className="text-slateText block text-[11px]">Origin Position</span>
+                    <strong className="text-xs font-semibold text-charcoal truncate block mt-0.5">{routeInfo.origin.label}</strong>
+                  </div>
+                </div>
+
+                {routeInfo.steps && routeInfo.steps.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-teal-100 text-xs text-slate-600">
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Corridor Route Waypoints</p>
+                    <ul className="space-y-1">
+                      {routeInfo.steps.slice(0, 3).map((step, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-[11.5px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0" />
+                          <span className="text-slate-700">{step}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* SmartRoute Alternatives (Potential Receiving Hospitals) */}
             <Panel
