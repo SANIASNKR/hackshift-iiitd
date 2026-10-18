@@ -12,16 +12,20 @@
 - Resource reservation with conditional SQL state transition, concurrency conflict detection and release.
 - Persisted event sequence, role-aware event history, ACK idempotence, WebSocket delivery/replay and ping/pong.
 - Real-time Hinglish EMS voice contact, radio dispatch events (`coordination.radio_dispatch`), and ER doctor pre-arrival directives (`clinical.doctor_directive`).
+- Live OpenRoute API integration (`/api/routes/open-route` and `/api/cases/{case_id}/open-route`) calculating real driving distance, emergency corridor ETA, and turn-by-turn road instructions via OSRM / OpenStreetMap.
 - Analytics API calculated from stored synthetic case, acceptance and resource records.
 - Admin-only synthetic scenario backend and reset functionality.
 
-**Backend validation:** `python3 -m pytest -v` → **17 passed** (66 FastAPI/Python deprecation warnings). Tests cover all core workflows including Hinglish extraction, radio dispatch, and real microphone audio upload/transcription.
+**Backend validation:** `python3 -m pytest -v` → **22 passed** (all unit and workflow integration tests passing). Tests cover all core workflows including OpenRoute algorithms, Hinglish extraction, radio dispatch, and real microphone audio upload/transcription.
 
 ## Frontend implementation status
 
 React/TypeScript source is implemented for the login, role-aware navigation, operational overview, case registry, all three intake mode selections, case details, manual reports, microphone recording controls, live speech recognition dictation, file upload, transcripts, JSON review/correction, missing fields, observations, conflicts, SmartRoute, coordinator confirmation, hospital response/readiness, resource inventory, live events, analytics, simulator, and basic admin inspection.
 
-**Humanization, Personalization & Hinglish Voice Contact Upgrades:**
+**Humanization, Personalization, Mobile & OpenRoute Upgrades:**
+- **OpenRoute Telemetry & Transit Guidance:** Real-time distance in kilometers, estimated emergency transit time in minutes, corridor waypoints, and 1-tap external directions via OpenStreetMap OSRM.
+- **Mobile Bottom Navigation Bar:** High-contrast thumb-friendly bottom nav bar on phone viewports (`<lg`) providing instant 1-tap access to Overview, Cases, Floating Intercom, Routes, and Menu drawer.
+- **High-Contrast Dark Aesthetic:** Deep solid navy `#142B3B` backgrounds across sidebars, hero cards, and modal headers, with crystal-clear `#FFFFFF` and `#E2E8F0` typography.
 - **Microphone Recording & Live Dictation:** End-to-end microphone capture using `MediaRecorder` + Web Speech API `createSpeechRecognizer` streaming real-time voice into intake and handover notes in Hinglish, Hindi, and English.
 - **Audio Transcription Pipeline:** Backend `/api/cases/{case_id}/audio` and `/api/cases/audio/transcribe` endpoints accept recorded audio clips with client dictation fallbacks, verify transcripts, and feed structured clinical extraction.
 - **EMS Voice Intercom & Walkie-Talkie Console:** Zero-dependency Web Audio API synthesizer for realistic Motorola radio chirps, squelch, phone ringtones, and priority alarms, with live mic PTT (Push-to-Talk) and hands-free dictation.
@@ -31,7 +35,7 @@ React/TypeScript source is implemented for the login, role-aware navigation, ope
 - **Bedside Human Touch & Care:** Visual 0-10 pain & distress scale with facial expressions, patient demeanor tracking, family attendant contact cards, and comfort checklist.
 - **Doctor Pre-Arrival Directives:** Receiving emergency physicians can issue immediate roll-in and medication orders directly to the ambulance.
 
-**Frontend validation:** `npm run build` and `npm run typecheck` both pass. Visual, audio, and microphone interactions run seamlessly in the browser.
+**Frontend validation:** `npm run build` passes in 1.44s with 0 errors. Visual, audio, and microphone interactions run seamlessly in the browser.
 
 ## Partial / missing requirements
 
