@@ -47,22 +47,22 @@ import {
   MissingInformationPanel,
   ClinicalConflictAlert
 } from '../components/UI';
-import { playRadioChirp, speakHinglish } from '../lib/audioSound';
+import { playRadioChirp, playRogerBeep, speakHinglish, createSpeechRecognizer } from '../lib/audioSound';
 import VoiceIntercomModal from '../components/VoiceIntercomModal';
 import AmbulanceTracker from '../components/AmbulanceTracker';
 
-const HINGLISH_QUICK_PRESETS = [
+const CLINICAL_QUICK_PRESETS = [
   {
-    label: '🚨 Acute Chest Pain / STEMI (Hinglish)',
-    text: 'Patient ko chhati me tez dard hai, pulse hai 110 bpm, saturation 94 percent, bp hai 150/95. Dawai: metformin. Allergy history unknown.'
+    label: '🚨 Acute Chest Pain / STEMI',
+    text: '58M severe chest pain for 20 minutes, pulse 110 bpm, SpO2 94%, BP 150/95. Meds: metformin. Allergy history unknown.'
   },
   {
-    label: '⚠️ Collapse & Ghabrahat (Hinglish)',
-    text: 'Adult male, Indiranagar flyover ke paas collapse hue the. Hosh me hain par bohot ghabrahat hai. Pulse 105 bpm, BP 140/90, spo2 92 %.'
+    label: '⚠️ Syncope & Collapse',
+    text: 'Adult male collapsed near Indiranagar flyover. Alert but distressed. Pulse 105 bpm, BP 140/90, SpO2 92%.'
   },
   {
-    label: '🏍️ Blunt Trauma / Fall (Hinglish)',
-    text: 'Motorcycle slip hui thi, left arm me severe dard aur swelling hai. Pulse 88 bpm, BP 124/80, saturation 98 %.'
+    label: '🏍️ Blunt Trauma / Fall',
+    text: 'Two-wheeler road collision, left arm deformity and severe tenderness. Pulse 88 bpm, BP 124/80, SpO2 98%.'
   }
 ];
 
@@ -106,6 +106,17 @@ export default function CaseDetail() {
   const media = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const speechRecognizer = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+      if (speechRecognizer.current) {
+        try { speechRecognizer.current.stop(); } catch {}
+      }
+    };
+  }, []);
 
   const refresh = () => {
     api<CaseDetails>('/cases/' + id)
@@ -155,6 +166,30 @@ export default function CaseDetail() {
         setClip(blob);
         stream.getTracks().forEach(t => t.stop());
       };
+
+      // Native speech recognizer for live real-time speech-to-text
+      const recognizer = createSpeechRecognizer(
+        'en-IN',
+        (liveText, isFinal) => {
+          if (liveText) {
+            setText(prev => {
+              const base = prev && !prev.endsWith(' ') ? prev + ' ' : prev;
+              if (!base.trim()) return liveText;
+              if (isFinal) return base + liveText;
+              return prev;
+            });
+          }
+        },
+        (err) => console.warn('Speech recognizer:', err)
+      );
+      if (recognizer) {
+        try {
+          recognizer.start();
+          speechRecognizer.current = recognizer;
+        } catch {}
+      }
+
+      playRadioChirp();
       m.start(250);
       setSec(0);
       setRec(true);
@@ -165,6 +200,11 @@ export default function CaseDetail() {
   }
 
   function stopRecording() {
+    playRogerBeep();
+    if (speechRecognizer.current) {
+      try { speechRecognizer.current.stop(); } catch {}
+      speechRecognizer.current = null;
+    }
     media.current?.stop();
     setRec(false);
     if (timer.current) clearInterval(timer.current);
@@ -176,6 +216,9 @@ export default function CaseDetail() {
     setBusy(true);
     const fd = new FormData();
     fd.append('file', blob, filename);
+    if (text) {
+      fd.append('transcript', text);
+    }
     try {
       const result = await new Promise<{ transcript: string }>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -195,8 +238,10 @@ export default function CaseDetail() {
         xhr.onerror = () => reject(new Error('Network failure during audio upload'));
         xhr.send(fd);
       });
-      setText(result.transcript);
-      setSuccess('Transcript returned. Review and submit before clinical extraction.');
+      if (result.transcript) {
+        setText(result.transcript);
+      }
+      setSuccess('Audio recorded & transcribed successfully. Review and click Submit below.');
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -216,7 +261,7 @@ export default function CaseDetail() {
         audio_simulated: true,
         urgency: 'priority'
       });
-    }, 'Hinglish radio message broadcast to hospital & logged to case');
+    }, 'Radio message broadcast to hospital & logged to case');
   };
 
   // Issue Doctor Directive
@@ -272,7 +317,7 @@ export default function CaseDetail() {
             <Radio size={14} className="text-brand animate-pulse" />
             <span>EMS Intercom</span>
             <span className="text-[10px] bg-brand-light text-brand-dark px-1 rounded font-semibold">
-              Hinglish
+              Live
             </span>
           </button>
 
@@ -340,12 +385,12 @@ export default function CaseDetail() {
         </div>
       </div>
 
-      {/* Hinglish Quick Radio Intercom Bar */}
+      {/* Emergency Quick Radio Intercom Bar */}
       <div className="card p-4 bg-navy text-white border-navy-light">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <Radio size={15} className="text-brand-light animate-pulse" />
-            <span className="text-xs font-bold text-white">Hinglish Voice & Radio Dispatch Bar</span>
+            <span className="text-xs font-bold text-white">Emergency Voice & Radio Dispatch Bar</span>
             <span className="text-[10px] bg-brand text-white px-2 py-0.5 rounded font-semibold">
               1-Tap Transmit
             </span>
@@ -362,15 +407,15 @@ export default function CaseDetail() {
           {[
             {
               title: '🚨 STEMI Alert',
-              text: 'Dr. Sahab, 58M patient severe chest pain 20 mins se, BP 150/95, ST elevation suspected. ICU/Cath lab ready rakhiye!'
+              text: 'Emergency Room, Rig 108 with 58M severe chest pain, BP 150/95, ST elevation suspected. Please prepare Resus Bay and Cath Lab.'
             },
             {
               title: '📍 Flyover ETA',
-              text: 'Ambulance flyover cross kar chuki hai, ETA 6 minutes, ramp par stretcher ready chahiye.'
+              text: 'Ambulance crossing Indiranagar flyover, ETA 6 minutes. Have stretcher and high-flow oxygen ready at Gate 2 entrance ramp.'
             },
             {
               title: '⚠️ Vitals Drop',
-              text: 'Patient ghabra raha hai, vitals drop kar rahe hain, high-flow O2 start kiya hai.'
+              text: 'Patient deteriorating with diaphoresis, SpO2 dropped to 90%. High-flow oxygen initiated.'
             }
           ].map((preset, idx) => (
             <button
@@ -512,16 +557,16 @@ export default function CaseDetail() {
           {isEditor && (
             <Panel
               title="Add Clinical Handover Report"
-              sub="Record emergency audio or enter report in Hinglish, Hindi, or English."
+              sub="Record emergency voice report or enter clinical details below."
             >
               <div className="p-4 sm:p-5 space-y-4">
-                {/* Hinglish Presets Bar */}
+                {/* Clinical Presets Bar */}
                 <div>
                   <div className="text-xs font-semibold text-slateText mb-1.5">
-                    1-Click Hinglish Clinical Note Templates:
+                    1-Click Clinical Note Templates:
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {HINGLISH_QUICK_PRESETS.map((p, idx) => (
+                    {CLINICAL_QUICK_PRESETS.map((p, idx) => (
                       <button
                         key={idx}
                         type="button"
@@ -539,7 +584,7 @@ export default function CaseDetail() {
                   <textarea
                     rows={4}
                     className="field text-sm"
-                    placeholder="e.g. Patient ko chhati me tez dard hai, pulse hai 110 bpm, saturation 94 percent, bp hai 150/95. Dawai: metformin."
+                    placeholder="e.g. Male patient approximately 58 years old with acute chest pain for 20 minutes, BP 150/95, pulse 110, SpO2 94%. Meds: metformin."
                     value={text}
                     onChange={e => setText(e.target.value)}
                   />
@@ -550,11 +595,29 @@ export default function CaseDetail() {
                   <button
                     type="button"
                     onClick={rec ? stopRecording : startRecording}
-                    className="btn btn-secondary text-xs"
+                    className={`btn text-xs font-semibold py-1.5 px-3 flex items-center gap-2 transition-all ${
+                      rec ? 'bg-critical text-white hover:bg-critical-dark ring-2 ring-critical/40' : 'btn-secondary'
+                    }`}
                   >
-                    {rec ? <Square size={14} className="text-critical animate-pulse" /> : <Mic size={14} />}
+                    {rec ? <Square size={14} className="fill-current animate-pulse" /> : <Mic size={14} />}
                     {rec ? `Stop Recording (${sec}s)` : 'Record Voice Handover'}
                   </button>
+
+                  {rec && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-surface-subtle border border-critical/30 rounded-md text-xs text-critical font-medium">
+                      <span className="h-2 w-2 rounded-full bg-critical animate-ping" />
+                      <span>Live Mic Streaming...</span>
+                      <div className="flex items-center gap-0.5 ml-1">
+                        {[8, 14, 20, 12, 18, 10].map((h, i) => (
+                          <div
+                            key={i}
+                            className="w-0.5 bg-critical rounded-full animate-pulse"
+                            style={{ height: `${Math.max(4, (h * (Math.sin(i + sec) + 1.2)) % 16)}px` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {clip && (
                     <>
@@ -569,7 +632,7 @@ export default function CaseDetail() {
                               (clip.type.includes('ogg') ? 'ogg' : clip.type.includes('mp4') ? 'mp4' : 'webm')
                           )
                         }
-                        className="btn btn-secondary text-xs"
+                        className="btn btn-secondary text-xs flex items-center gap-1.5"
                       >
                         <Upload size={14} /> Transcribe Audio
                       </button>

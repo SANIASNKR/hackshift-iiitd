@@ -55,7 +55,7 @@ export const EMERGENCY_CONTACTS: ContactPerson[] = [
     hospital: 'Northbridge Apollo Heart & Trauma Hub',
     phone: '+91 98101-EMS01',
     radioChannel: 'Channel 4 (Apollo ER Direct)',
-    languages: ['Hinglish', 'Hindi', 'English'],
+    languages: ['English', 'Hindi'],
     avatarBg: 'bg-emerald-600',
     avatarText: 'AS',
     status: 'active',
@@ -69,7 +69,7 @@ export const EMERGENCY_CONTACTS: ContactPerson[] = [
     hospital: 'Riverbend Max Super Specialty',
     phone: '+91 98202-EMS02',
     radioChannel: 'Channel 7 (Cath Lab Standby)',
-    languages: ['Hinglish', 'Hindi', 'English'],
+    languages: ['English', 'Hindi'],
     avatarBg: 'bg-blue-600',
     avatarText: 'RV',
     status: 'active',
@@ -83,7 +83,7 @@ export const EMERGENCY_CONTACTS: ContactPerson[] = [
     hospital: 'State Emergency Command',
     phone: '+91 98303-EMS03',
     radioChannel: 'Channel 1 (Priority Grid 108)',
-    languages: ['Hinglish', 'Hindi', 'English'],
+    languages: ['English', 'Hindi'],
     avatarBg: 'bg-amber-600',
     avatarText: 'PN',
     status: 'active',
@@ -97,7 +97,7 @@ export const EMERGENCY_CONTACTS: ContactPerson[] = [
     hospital: 'Ambulance Field Unit 108',
     phone: '+91 98404-EMS04',
     radioChannel: 'Channel 1 (Rig BLS-108)',
-    languages: ['Hinglish', 'Hindi'],
+    languages: ['English', 'Hindi'],
     avatarBg: 'bg-teal-600',
     avatarText: 'VR',
     status: 'active',
@@ -105,40 +105,40 @@ export const EMERGENCY_CONTACTS: ContactPerson[] = [
   }
 ];
 
-export const HINGLISH_RADIO_PRESETS = [
+export const RADIO_DISPATCH_PRESETS = [
   {
     title: '🚨 STEMI / Cardiac Alert',
-    text: 'Dr. Sahab, 58 saal ke male patient hain, severe chest pain 20 minute se hai. BP 150/95 hai, ECG me ST elevation dikh raha hai. ICU aur Cath Lab ready rakhiye!',
+    text: 'Receiving physician, male patient 58 years with acute chest pain for 20 minutes, BP 150/95, ST elevation suspected. Please alert Resus Bay and Cath Lab on standby.',
     urgency: 'immediate_critical' as const,
     channel: 'Priority EMS-108'
   },
   {
     title: '📍 Flyover ETA & Stretcher Prep',
-    text: 'Ambulance Indiranagar flyover cross kar chuki hai, ETA 6 minutes hai. Gate 2 ramp par stretcher and high-flow oxygen ready chahiye.',
+    text: 'Ambulance crossing Indiranagar flyover, ETA 6 minutes. Requesting stretcher and high-flow oxygen ready at Gate 2 entrance ramp.',
     urgency: 'priority' as const,
     channel: 'Priority EMS-108'
   },
   {
     title: '⚠️ Critical Deterioration',
-    text: 'Patient ko bohot ghabrahat aur cold sweats ho rahe hain. Oxygen level 90% par aa gaya hai, high-flow mask lagaya hai aur vitals unstable hain.',
+    text: 'Patient deteriorating with acute diaphoresis and cold extremities. SpO2 dropped to 90%, high-flow oxygen mask initiated, vitals unstable.',
     urgency: 'immediate_critical' as const,
     channel: 'Priority EMS-108'
   },
   {
-    title: '🔄 Hospital Reroute Request',
-    text: 'Northbridge ED me ICU bed available nahi hai unhone decline kiya hai. Coordinator ji, please Riverbend ya alternate hospital jaldi confirm karwaiye!',
+    title: '🔄 Hospital Divert Request',
+    text: 'Northbridge Emergency reports no ICU beds available. Dispatch coordinator, please verify divert to Riverbend or nearest tertiary trauma facility.',
     urgency: 'priority' as const,
     channel: 'Central Dispatch'
   },
   {
     title: '💊 Doctor Verbal Order Check',
-    text: 'Doctor Sahab line par aaiye, patient deteriorate kar raha hai, sublingual sorbitrate 5mg aur chewable aspirin 300mg de dein kya?',
+    text: 'Attending physician, patient deteriorating in transit. Requesting verbal order for sublingual nitrate 5mg and chewable aspirin 300mg.',
     urgency: 'immediate_critical' as const,
     channel: 'Channel 4 (Apollo ER)'
   },
   {
     title: '✅ Bay Handover Complete',
-    text: 'Ambulance hospital bay par pahunch chuki hai. Patient ko Resus Bay 2 me shift kar rahe hain, physical clinical handover complete ho raha hai.',
+    text: 'Ambulance arrived at emergency bay. Transferring patient to Resuscitation Bay 2 for physical handover.',
     urgency: 'routine' as const,
     channel: 'Priority EMS-108'
   }
@@ -200,6 +200,11 @@ export default function VoiceIntercomModal({
     return () => clearInterval(t);
   }, [callState]);
 
+  // Speech recognition and hands-free mic state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const speechRecognizer = useRef<any>(null);
+  const [isDictating, setIsDictating] = useState(false);
+
   // Clean up on unmount or close
   useEffect(() => {
     if (!isOpen) {
@@ -207,6 +212,12 @@ export default function VoiceIntercomModal({
         ringStopper.current();
         ringStopper.current = null;
       }
+      if (speechRecognizer.current) {
+        try { speechRecognizer.current.stop(); } catch {}
+        speechRecognizer.current = null;
+      }
+      setIsDictating(false);
+      setIsTransmitting(false);
       if (callState === 'calling') setCallState('idle');
     }
   }, [isOpen, callState]);
@@ -217,14 +228,83 @@ export default function VoiceIntercomModal({
   const startRadioTransmission = () => {
     playRadioChirp();
     setIsTransmitting(true);
-    setRadioStatus('🔴 TRANSMITTING OVER RADIO...');
+    setRadioStatus('🔴 TRANSMITTING OVER RADIO... (Microphone active)');
+
+    if (speechRecognizer.current) {
+      try { speechRecognizer.current.stop(); } catch {}
+    }
+    const recognizer = createSpeechRecognizer(
+      'hi-IN',
+      (liveText, isFinal) => {
+        if (liveText) {
+          setRadioMsg(prev => {
+            const base = prev && !prev.endsWith(' ') ? prev + ' ' : prev;
+            if (!base.trim()) return liveText;
+            if (isFinal) return base + liveText;
+            return prev;
+          });
+        }
+      },
+      err => console.warn('Radio mic recognizer:', err)
+    );
+    if (recognizer) {
+      try {
+        recognizer.start();
+        speechRecognizer.current = recognizer;
+      } catch {}
+    }
   };
 
   // Push-To-Talk Release
   const stopRadioTransmission = () => {
     playRogerBeep();
+    if (speechRecognizer.current) {
+      try { speechRecognizer.current.stop(); } catch {}
+      speechRecognizer.current = null;
+    }
     setIsTransmitting(false);
-    setRadioStatus('Channel Open · Transmission Ended');
+    setRadioStatus('Channel Open · Voice captured into radio box. Review or Transmit.');
+  };
+
+  const toggleDictation = () => {
+    if (isDictating) {
+      playRogerBeep();
+      if (speechRecognizer.current) {
+        try { speechRecognizer.current.stop(); } catch {}
+        speechRecognizer.current = null;
+      }
+      setIsDictating(false);
+      setRadioStatus('Channel Open · Dictation stopped');
+    } else {
+      playRadioChirp();
+      setIsDictating(true);
+      setRadioStatus('🔴 Continuous Microphone Listening (Speak clearly)...');
+      const recognizer = createSpeechRecognizer(
+        'hi-IN',
+        (liveText, isFinal) => {
+          if (liveText) {
+            setRadioMsg(prev => {
+              const base = prev && !prev.endsWith(' ') ? prev + ' ' : prev;
+              if (!base.trim()) return liveText;
+              if (isFinal) return base + liveText;
+              return prev;
+            });
+          }
+        },
+        err => {
+          console.warn('Intercom dictation:', err);
+          setIsDictating(false);
+        }
+      );
+      if (recognizer) {
+        try {
+          recognizer.start();
+          speechRecognizer.current = recognizer;
+        } catch {
+          setIsDictating(false);
+        }
+      }
+    }
   };
 
   // Transmit Message
@@ -290,7 +370,7 @@ export default function VoiceIntercomModal({
           time: '00:01'
         }
       ]);
-      speakHinglish(`Haan Vikram, ${contact.name.split(' ')[1] || 'Doctor'} here. Ambulance 108 line par ho? Patient ki condition report karo.`);
+      speakHinglish(`Ambulance 108, Dr. ${contact.name.split(' ')[1] || 'Sen'} here. Receiving loud and clear. Report patient condition.`);
     }, 2800);
   };
 
@@ -313,13 +393,13 @@ export default function VoiceIntercomModal({
 
     // Simulated doctor response after 2 seconds
     setTimeout(() => {
-      let doctorReply = 'Samajh gaya Vikram. Stretcher Gate 2 par tayyar hai.';
+      let doctorReply = 'Acknowledged. Stretcher and trauma team are ready at Gate 2 entrance ramp.';
       if (text.includes('chest pain') || text.includes('BP') || text.includes('STEMI')) {
-        doctorReply = 'Noted! ECG strip hamare portal par live aa gayi hai. Cath Lab team ko emergency scrub-in ka order de diya hai. High-flow O2 continue rakho!';
+        doctorReply = 'Noted. Live vitals received. Cath Lab team is scrubbing in on emergency standby. Continue high-flow oxygen and maintain IV access.';
       } else if (text.includes('ETA') || text.includes('flyover')) {
-        doctorReply = 'Theek hai, 6 minute me ambulance bay 2 par roll-in karna. Staff ramp par wait kar raha hai.';
+        doctorReply = 'Copy that. Roll into Emergency Bay 2 on arrival. Staff is stationed at the ramp.';
       } else if (text.includes('sorbitrate') || text.includes('aspirin')) {
-        doctorReply = 'Haan, chewable aspirin 300mg immediately do, agar BP 100 se kam nahi hai to sublingual sorbitrate de sakte ho.';
+        doctorReply = 'Approved. Administer chewable aspirin 300mg immediately. If systolic BP remains above 100, proceed with sublingual nitrate.';
       }
 
       setCallTranscript(p => [
@@ -343,11 +423,11 @@ export default function VoiceIntercomModal({
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-extrabold tracking-tight">EMS Voice Contact & Radio Intercom</h2>
                 <span className="rounded-full bg-teal-400/20 text-teal-300 text-[10px] font-bold px-2 py-0.5 border border-teal-400/30">
-                  Hinglish / English
+                  EMS Hotline
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                Direct walkie-talkie radio, doctor hotlines, and instant Hinglish dispatches
+                Direct walkie-talkie radio, doctor hotlines, and instant priority dispatches
               </p>
             </div>
           </div>
@@ -361,10 +441,10 @@ export default function VoiceIntercomModal({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-2 overflow-x-auto">
+        <div className="flex border-b border-slate-200 bg-slate-50 px-3 sm:px-4 pt-2 gap-2 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setTab('radio')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl shrink-0 whitespace-nowrap transition-all ${
               tab === 'radio'
                 ? 'bg-white text-teal-800 border-t-2 border-teal-600 shadow-sm'
                 : 'text-slate-600 hover:text-ink hover:bg-slate-100'
@@ -375,7 +455,7 @@ export default function VoiceIntercomModal({
           </button>
           <button
             onClick={() => setTab('hotline')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl shrink-0 whitespace-nowrap transition-all ${
               tab === 'hotline'
                 ? 'bg-white text-teal-800 border-t-2 border-teal-600 shadow-sm'
                 : 'text-slate-600 hover:text-ink hover:bg-slate-100'
@@ -389,14 +469,14 @@ export default function VoiceIntercomModal({
           </button>
           <button
             onClick={() => setTab('contacts')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all ${
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2.5 text-xs font-bold rounded-t-xl shrink-0 whitespace-nowrap transition-all ${
               tab === 'contacts'
                 ? 'bg-white text-teal-800 border-t-2 border-teal-600 shadow-sm'
                 : 'text-slate-600 hover:text-ink hover:bg-slate-100'
             }`}
           >
             <UserCheck size={16} />
-            Hinglish Speed Dial & Contacts
+            Emergency Speed Dial & Contacts
           </button>
         </div>
 
@@ -487,6 +567,18 @@ export default function VoiceIntercomModal({
 
                 {/* Manual Voice Input or Typed Hinglish Dispatch */}
                 <div className="mt-2 pt-4 border-t border-white/10 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={toggleDictation}
+                    className={`p-2.5 rounded-xl border transition-all flex items-center justify-center shrink-0 ${
+                      isDictating
+                        ? 'bg-red-600 text-white border-red-500 animate-pulse ring-2 ring-red-400/40'
+                        : 'bg-white/10 hover:bg-white/20 text-teal-300 border-white/20'
+                    }`}
+                    title={isDictating ? 'Stop microphone dictation' : 'Click to dictate hands-free into radio box'}
+                  >
+                    {isDictating ? <MicOff size={16} /> : <Mic size={16} />}
+                  </button>
                   <input
                     type="text"
                     value={radioMsg}
@@ -494,7 +586,11 @@ export default function VoiceIntercomModal({
                     onKeyDown={e => {
                       if (e.key === 'Enter') handleTransmit();
                     }}
-                    placeholder="Type or speak in Hinglish (e.g. Doctor Sahab, BP 150/95 hai, Cath lab ready rakhiye...)"
+                    placeholder={
+                      isTransmitting || isDictating
+                        ? 'Listening to microphone... speak clearly'
+                        : 'Type or dictate message (e.g. Doctor, BP 150/95, Cath lab on standby...)'
+                    }
                     className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-400 outline-none focus:border-teal-400"
                   />
                   <button
@@ -507,17 +603,17 @@ export default function VoiceIntercomModal({
                 </div>
               </div>
 
-              {/* Quick Hinglish Presets (1-Click Voice Dispatches) */}
+              {/* Quick Presets (1-Click Voice Dispatches) */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-xs font-bold text-ink uppercase tracking-wider flex items-center gap-2">
                     <Sparkles size={15} className="text-amber-500" />
-                    Instant Hinglish Radio Dispatches (1-Tap Transmit)
+                    Instant Priority Radio Dispatches (1-Tap Transmit)
                   </div>
                   <span className="text-[11px] text-slate-400">Click to broadcast over radio</span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {HINGLISH_RADIO_PRESETS.map((preset, idx) => (
+                  {RADIO_DISPATCH_PRESETS.map((preset, idx) => (
                     <div
                       key={idx}
                       className="rounded-xl border border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50/20 p-3.5 transition-all text-left flex flex-col justify-between"
@@ -643,7 +739,7 @@ export default function VoiceIntercomModal({
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-xs font-bold text-ink flex items-center gap-2">
                       <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Two-Way Emergency Intercom Active (Hinglish/English)
+                      Two-Way Emergency Intercom Active
                     </span>
                     <span className="text-xs text-slate-400">Audio synthesized live</span>
                   </div>
@@ -676,17 +772,17 @@ export default function VoiceIntercomModal({
                     ))}
                   </div>
 
-                  {/* Quick Paramedic Hinglish Answers */}
+                  {/* Quick Paramedic Verbal Responses */}
                   <div className="pt-3 border-t border-slate-100">
                     <div className="text-[11px] font-bold text-slate-500 mb-2">
-                      Quick Paramedic Hinglish Transmissions:
+                      Quick Paramedic Verbal Transmissions:
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {[
-                        'Doctor Sahab, BP 150/95 hai, pulse 110 bpm, STEMI suspected.',
-                        'Oxygen 4L nasal cannula par chalu kar diya hai.',
-                        'ETA 5 minutes hai, ramp par stretcher ready chahiye.',
-                        'Patient deteriorate kar raha hai, aspirin 300mg de dein kya?'
+                        'Doctor, BP is 150/95, pulse 110 bpm, STEMI suspected.',
+                        'Oxygen 4L initiated via nasal cannula.',
+                        'ETA 5 minutes, requesting stretcher ready at entrance ramp.',
+                        'Patient deteriorating, requesting directive for aspirin 300mg.'
                       ].map((phrase, i) => (
                         <button
                           key={i}
@@ -704,7 +800,7 @@ export default function VoiceIntercomModal({
                   <Phone size={36} className="mx-auto mb-3 text-slate-400" />
                   <h4 className="font-bold text-sm text-ink">Direct ER Phone Line Ready</h4>
                   <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                    Select a physician or coordinator above and press "Dial ER Hotline" to connect an instant voice link with real Hinglish clinical dialogue.
+                    Select a physician or coordinator above and press "Dial ER Hotline" to connect an instant voice link with receiving medical staff.
                   </p>
                 </div>
               )}
@@ -769,7 +865,7 @@ export default function VoiceIntercomModal({
               <div className="card p-4 bg-slate-50 border-slate-200">
                 <div className="text-xs font-bold text-ink mb-1 flex items-center gap-2">
                   <MessageSquare size={15} className="text-teal-700" />
-                  Hinglish WhatsApp / SMS Emergency Dispatch Format
+                  Emergency WhatsApp / SMS Pre-Hospital Dispatch Format
                 </div>
                 <p className="text-[11px] text-slate-500 mb-3">
                   Standard format used for pre-hospital broadcast to emergency department teams:
@@ -783,7 +879,7 @@ export default function VoiceIntercomModal({
                       navigator.clipboard.writeText(
                         '[AYUSTREAM 108 ALERT] Patient: 58M | Chief: Severe Chest Pain (20 min) | Vitals: BP 150/95, Pulse 110, SpO2 94% | Destination: Apollo Heart Hub | ETA: 6 mins'
                       );
-                      alert('Hinglish dispatch copied to clipboard!');
+                      alert('Emergency dispatch text copied to clipboard!');
                     }}
                     className="btn btn-secondary text-xs py-1.5"
                   >

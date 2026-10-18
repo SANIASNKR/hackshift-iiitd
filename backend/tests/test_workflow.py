@@ -189,3 +189,21 @@ def test_ambulance_location_is_persisted_scoped_and_emits_event(client,login):
     assert client.get(f"/api/cases/{case['id']}",headers=river).status_code==403
     invalid=client.post(f"/api/cases/{case['id']}/ambulance-location",headers=param,json={'latitude':91,'longitude':77})
     assert invalid.status_code==422
+
+def test_microphone_audio_upload_transcription(client,login):
+    p=login(client);c=new_case(client,p)
+    # 1. Real microphone audio upload (> 32 bytes)
+    real_audio=b'RIFF'+b'\x00'*40
+    res=client.post(f"/api/cases/{c['id']}/audio",headers=p,files={'file':('mic_recording.webm',real_audio,'audio/webm')})
+    assert res.status_code==200,res.text
+    assert 'transcript' in res.json()
+    assert len(res.json()['transcript'])>10
+    # 2. Microphone upload with live client dictation transcript
+    res2=client.post(f"/api/cases/{c['id']}/audio",headers=p,files={'file':('mic_recording.webm',real_audio,'audio/webm')},data={'transcript':'Patient ko chhati me tez dard hai, pulse 110, bp 150/95'})
+    assert res2.status_code==200,res2.text
+    assert res2.json()['transcript']=='Patient ko chhati me tez dard hai, pulse 110, bp 150/95'
+    # 3. Standalone intake audio transcription endpoint
+    res3=client.post('/api/cases/audio/transcribe',headers=p,files={'file':('intake_audio.webm',real_audio,'audio/webm')},data={'transcript':'Patient found unconscious near highway'})
+    assert res3.status_code==200,res3.text
+    assert res3.json()['transcript']=='Patient found unconscious near highway'
+

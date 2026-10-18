@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import uuid4
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from .db import get_db
@@ -63,15 +63,27 @@ async def submit_report(case_id:str,data:ReportIn,user=Depends(require('paramedi
         raise
     case.updated_at=utc();ev=record(db,event_type,user,case_id=case_id,payload={'report_id':report.id,'review_status':report.review_status})
     db.commit();await publish(ev);return obj(report)
+@router.post('/audio/transcribe')
+async def transcribe_intake_audio(file:UploadFile=File(...),transcript:str=Form(None),user=Depends(require('paramedic','coordinator','admin'))):
+    supported={'audio/webm','audio/wav','audio/x-wav','audio/mpeg','audio/mp4','audio/ogg','audio/mp3'}
+    if file.content_type not in supported:raise HTTPException(415,'Unsupported audio content type')
+    content=await file.read(10*1024*1024+1)
+    if not content or len(content)>10*1024*1024:raise HTTPException(413,'Empty or oversized audio file (limit: 10 MB)')
+    if transcript and transcript.strip():
+        return {'transcript':transcript.strip(),'stored_audio':False,'requires_review':True}
+    res_transcript=await transcribe(content,file.filename or 'recording.webm',file.content_type)
+    return {'transcript':res_transcript,'stored_audio':False,'requires_review':True}
 @router.post('/{case_id}/audio')
-async def audio_report(case_id:str,file:UploadFile=File(...),user=Depends(require('paramedic','coordinator','admin')),db:Session=Depends(get_db)):
+async def audio_report(case_id:str,file:UploadFile=File(...),transcript:str=Form(None),user=Depends(require('paramedic','coordinator','admin')),db:Session=Depends(get_db)):
     get_case_or_404(case_id,user,db)
     supported={'audio/webm','audio/wav','audio/x-wav','audio/mpeg','audio/mp4','audio/ogg','audio/mp3'}
     if file.content_type not in supported:raise HTTPException(415,'Unsupported audio content type')
     content=await file.read(10*1024*1024+1)
     if not content or len(content)>10*1024*1024:raise HTTPException(413,'Empty or oversized audio file (limit: 10 MB)')
-    transcript=await transcribe(content,file.filename or 'recording.webm',file.content_type)
-    return {'transcript':transcript,'stored_audio':False,'requires_review':True}
+    if transcript and transcript.strip():
+        return {'transcript':transcript.strip(),'stored_audio':False,'requires_review':True}
+    res_transcript=await transcribe(content,file.filename or 'recording.webm',file.content_type)
+    return {'transcript':res_transcript,'stored_audio':False,'requires_review':True}
 @router.post('/identity/ocr')
 async def ocr_document(file:UploadFile=File(...),user=Depends(require('paramedic','admin','coordinator'))):
     if file.content_type not in ('image/jpeg','image/png','image/webp'):raise HTTPException(415,'JPEG, PNG or WebP required')

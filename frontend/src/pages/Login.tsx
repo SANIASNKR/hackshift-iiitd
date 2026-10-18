@@ -106,7 +106,7 @@ export default function Login() {
                   <Radio size={14} />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold text-white">Verbal & Hinglish Handover</div>
+                  <div className="text-xs font-semibold text-white">Hands-Free Voice Handover</div>
                   <div className="text-[11px] text-slate-300">Live walkie-talkie radio intercom and clinical speech transcription.</div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -16,11 +16,15 @@ import {
   AlertTriangle,
   Upload,
   Mic,
-  Square
+  MicOff,
+  Square,
+  RotateCcw,
+  Volume2
 } from 'lucide-react';
 import { api, post, Case, Hospital, pretty } from '../lib/api';
 import { useLive } from '../lib/live';
 import { useAuth } from '../lib/auth';
+import { createSpeechRecognizer, playRadioChirp, playRogerBeep } from '../lib/audioSound';
 import {
   PageHeader,
   Panel,
@@ -179,6 +183,31 @@ export function NewCase() {
   const [busy, setBusy] = useState(false);
   const [ocr, setOcr] = useState('');
 
+  // Voice Recording & Live Speech Recognition state for Intake
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [speechLang, setSpeechLang] = useState<'hi-IN' | 'en-IN'>('en-IN');
+  const [transcribing, setTranscribing] = useState(false);
+  const [micNotice, setMicNotice] = useState<string>('');
+
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
+  const recordTimer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const speechRecognizer = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (recordTimer.current) clearInterval(recordTimer.current);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      if (speechRecognizer.current) {
+        try { speechRecognizer.current.stop(); } catch {}
+      }
+    };
+  }, [audioUrl]);
+
   // Guided Step State: 1 = Patient Info, 2 = Clinical Details & Complaint, 3 = Coordination & Hospital
   const [step, setStep] = useState<number>(1);
 
@@ -204,6 +233,122 @@ export function NewCase() {
   }, []);
 
   const update = (key: string, value: unknown) => setForm(f => ({ ...f, [key]: value }));
+
+  async function startAudioCapture() {
+    setError('');
+    setMicNotice('');
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      setError('This browser does not support microphone audio recording.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks.current = [];
+      const preferred = ['audio/webm', 'audio/ogg', 'audio/mp4'].find(x => MediaRecorder.isTypeSupported(x));
+      const m = new MediaRecorder(stream, preferred ? { mimeType: preferred } : undefined);
+      mediaRecorder.current = m;
+
+      m.ondataavailable = e => {
+        if (e.data.size) audioChunks.current.push(e.data);
+      };
+
+      m.onstop = () => {
+        const blob = new Blob(audioChunks.current, { type: m.mimeType || 'audio/webm' });
+        setAudioBlob(blob);
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        setAudioUrl(URL.createObjectURL(blob));
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      // Start live speech recognizer in parallel for instant dictation
+      const recognizer = createSpeechRecognizer(
+        speechLang,
+        (liveText, isFinal) => {
+          if (liveText) {
+            setForm(f => {
+              const base = f.complaint && !f.complaint.endsWith(' ') ? f.complaint + ' ' : f.complaint;
+              if (!base.trim()) return { ...f, complaint: liveText };
+              if (isFinal) return { ...f, complaint: base + liveText };
+              return f;
+            });
+          }
+        },
+        (err) => {
+          console.warn('Speech recognition notice:', err);
+        }
+      );
+
+      if (recognizer) {
+        try {
+          recognizer.start();
+          speechRecognizer.current = recognizer;
+        } catch {}
+      }
+
+      playRadioChirp();
+      m.start(250);
+      setRecordSeconds(0);
+      setIsRecording(true);
+      recordTimer.current = setInterval(() => setRecordSeconds(s => s + 1), 1000);
+      setMicNotice('Microphone active. Dictate emergency clinical symptoms clearly.');
+    } catch {
+      setError('Microphone access denied or device unavailable. Please allow microphone permission in your browser or enter text manually.');
+    }
+  }
+
+  function stopAudioCapture() {
+    playRogerBeep();
+    if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+      mediaRecorder.current.stop();
+    }
+    if (speechRecognizer.current) {
+      try { speechRecognizer.current.stop(); } catch {}
+      speechRecognizer.current = null;
+    }
+    if (recordTimer.current) {
+      clearInterval(recordTimer.current);
+      recordTimer.current = undefined;
+    }
+    setIsRecording(false);
+    setMicNotice('Audio recording captured. You can review audio, transcribe with server, or edit notes.');
+  }
+
+  function resetAudioCapture() {
+    if (isRecording) stopAudioCapture();
+    setAudioBlob(null);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    setRecordSeconds(0);
+    setMicNotice('');
+  }
+
+  async function serverTranscribeAudio() {
+    if (!audioBlob) return;
+    setTranscribing(true);
+    setError('');
+    const fd = new FormData();
+    fd.append('file', audioBlob, 'intake_report.webm');
+    if (form.complaint) {
+      fd.append('transcript', form.complaint);
+    }
+    try {
+      const res = await api<{ transcript: string }>('/cases/audio/transcribe', {
+        method: 'POST',
+        body: fd
+      });
+      if (res.transcript) {
+        setForm(f => ({ ...f, complaint: res.transcript }));
+        setMicNotice('Voice report verified & transcribed by backend AI.');
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setTranscribing(false);
+    }
+  }
 
   async function submit(e?: React.FormEvent) {
     if (e) e.preventDefault();
@@ -379,13 +524,135 @@ export function NewCase() {
         {step === 2 && (
           <Panel
             title="Step 2: Emergency Clinical Details"
-            sub="Record the reported chief concern and symptoms. You can dictate or use Hinglish presets."
+            sub="Dictate directly into the microphone, or select standard clinical presets and type manual notes."
           >
             <div className="p-5 sm:p-6 space-y-5">
+              {/* Emergency Microphone Dictation Console */}
+              <div className="rounded-xl border border-surface-border bg-gradient-to-br from-surface to-surface-subtle p-4 sm:p-5 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-surface-border pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-lg ${isRecording ? 'bg-critical-subtle text-critical animate-pulse' : 'bg-brand-50 text-brand'}`}>
+                      <Mic size={18} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-ink flex items-center gap-2">
+                        Microphone Voice Dictation
+                        {isRecording && (
+                          <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-critical bg-critical-subtle px-2 py-0.5 rounded-full border border-critical/30 animate-pulse">
+                            <span className="h-1.5 w-1.5 rounded-full bg-critical" /> Live Listening
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slateText">
+                        Speak clinical handover notes. Native speech recognition streams live into the field.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slateText">Dictation Language:</span>
+                    <select
+                      value={speechLang}
+                      onChange={e => setSpeechLang(e.target.value as 'en-IN' | 'hi-IN')}
+                      disabled={isRecording}
+                      className="text-xs bg-surface border border-surface-border rounded-md px-2 py-1 text-ink focus:outline-none focus:ring-1 focus:ring-brand"
+                    >
+                      <option value="en-IN">English (India) / Conversational</option>
+                      <option value="hi-IN">Hindi (hi-IN)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Controls and Audio Visualizer */}
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={isRecording ? stopAudioCapture : startAudioCapture}
+                    className={`btn text-xs font-semibold py-2 px-4 shadow-sm flex items-center gap-2 transition-all ${
+                      isRecording
+                        ? 'bg-critical text-white hover:bg-critical-dark ring-2 ring-critical/40'
+                        : 'btn-primary'
+                    }`}
+                  >
+                    {isRecording ? (
+                      <>
+                        <Square size={14} className="fill-current" />
+                        Stop Recording ({String(Math.floor(recordSeconds / 60)).padStart(2, '0')}:{String(recordSeconds % 60).padStart(2, '0')})
+                      </>
+                    ) : (
+                      <>
+                        <Mic size={14} />
+                        Start Microphone Dictation
+                      </>
+                    )}
+                  </button>
+
+                  {/* Soundwave equalizer indicator when recording */}
+                  {isRecording && (
+                    <div className="flex items-center gap-1 h-6 px-3 bg-surface rounded-md border border-critical/30">
+                      {[12, 22, 16, 28, 14, 26, 18, 24, 10, 20].map((h, idx) => (
+                        <div
+                          key={idx}
+                          className="w-1 bg-critical rounded-full animate-pulse"
+                          style={{
+                            height: `${Math.max(6, (h * (Math.sin(idx + recordSeconds) + 1.2)) % 22)}px`,
+                            animationDelay: `${idx * 80}ms`
+                          }}
+                        />
+                      ))}
+                      <span className="text-[11px] font-mono text-critical font-bold ml-1.5">
+                        Recording...
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Audio playback and Server transcription if clip exists */}
+                  {audioUrl && !isRecording && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <audio controls src={audioUrl} className="h-8 max-w-[200px]" />
+                      <button
+                        type="button"
+                        disabled={transcribing}
+                        onClick={serverTranscribeAudio}
+                        className="btn btn-secondary text-xs flex items-center gap-1.5"
+                        title="Run server-side AI transcription verification"
+                      >
+                        {transcribing ? (
+                          <>
+                            <span className="h-3 w-3 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+                            Transcribing…
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={13} className="text-brand" />
+                            Transcribe / Refine with AI
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetAudioCapture}
+                        className="btn btn-ghost text-xs text-slateText hover:text-ink p-1.5"
+                        title="Discard audio recording"
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {micNotice && (
+                  <div className="text-xs text-brand font-medium bg-brand-50/70 border border-brand/20 rounded-lg px-3 py-1.5 flex items-center gap-2">
+                    <CheckCircle2 size={13} className="text-brand shrink-0" />
+                    <span>{micNotice}</span>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="label mb-0">Reported Chief Complaint / Initial Concern</label>
-                  <span className="text-xs text-brand font-medium">Quick Hinglish templates:</span>
+                  <span className="text-xs text-brand font-medium">Standard clinical templates:</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 mb-2.5">
@@ -413,6 +680,10 @@ export function NewCase() {
                   onChange={e => update('complaint', e.target.value)}
                   required
                 />
+                <p className="helper mt-1 flex justify-between items-center">
+                  <span>Speak into microphone above or type clinical handover notes.</span>
+                  <span>{form.complaint.length} characters</span>
+                </p>
               </div>
 
               <div className="flex justify-between pt-3">

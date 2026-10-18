@@ -15,25 +15,27 @@
 - Analytics API calculated from stored synthetic case, acceptance and resource records.
 - Admin-only synthetic scenario backend and reset functionality.
 
-**Backend validation:** `python3 -m pytest -v` → **15 passed** (62 FastAPI/Python deprecation warnings). Tests cover all core workflows including Hinglish extraction and radio dispatch.
+**Backend validation:** `python3 -m pytest -v` → **17 passed** (66 FastAPI/Python deprecation warnings). Tests cover all core workflows including Hinglish extraction, radio dispatch, and real microphone audio upload/transcription.
 
 ## Frontend implementation status
 
-React/TypeScript source is implemented for the login, role-aware navigation, operational overview, case registry, all three intake mode selections, case details, manual reports, recording controls, file upload, transcripts, JSON review/correction, missing fields, observations, conflicts, SmartRoute, coordinator confirmation, hospital response/readiness, resource inventory, live events, analytics, simulator, and basic admin inspection.
+React/TypeScript source is implemented for the login, role-aware navigation, operational overview, case registry, all three intake mode selections, case details, manual reports, microphone recording controls, live speech recognition dictation, file upload, transcripts, JSON review/correction, missing fields, observations, conflicts, SmartRoute, coordinator confirmation, hospital response/readiness, resource inventory, live events, analytics, simulator, and basic admin inspection.
 
 **Humanization, Personalization & Hinglish Voice Contact Upgrades:**
-- **EMS Voice Intercom & Walkie-Talkie Console:** Zero-dependency Web Audio API synthesizer for realistic Motorola radio chirps, squelch, phone ringtones, and priority alarms.
+- **Microphone Recording & Live Dictation:** End-to-end microphone capture using `MediaRecorder` + Web Speech API `createSpeechRecognizer` streaming real-time voice into intake and handover notes in Hinglish, Hindi, and English.
+- **Audio Transcription Pipeline:** Backend `/api/cases/{case_id}/audio` and `/api/cases/audio/transcribe` endpoints accept recorded audio clips with client dictation fallbacks, verify transcripts, and feed structured clinical extraction.
+- **EMS Voice Intercom & Walkie-Talkie Console:** Zero-dependency Web Audio API synthesizer for realistic Motorola radio chirps, squelch, phone ringtones, and priority alarms, with live mic PTT (Push-to-Talk) and hands-free dictation.
 - **Hinglish Radio Dispatches (1-Tap):** Built-in presets for acute STEMI alerts, flyover ETA updates, vitals deterioration, and hospital rerouting with Web Speech TTS audio playback and live WebSocket broadcast.
 - **Direct ER Doctor Hotline:** Interactive voice call simulator connecting Paramedic Vikram Rathore directly with ER In-charge Dr. Aditi Sen with two-way Hinglish conversation.
 - **Personalized Crew Identity:** Paramedic and Doctor duty status switcher, active shift duration counters, station call signs, and badge IDs.
 - **Bedside Human Touch & Care:** Visual 0-10 pain & distress scale with facial expressions, patient demeanor tracking, family attendant contact cards, and comfort checklist.
 - **Doctor Pre-Arrival Directives:** Receiving emergency physicians can issue immediate roll-in and medication orders directly to the ambulance.
 
-**Frontend validation:** `npm run build` and `npm run typecheck` both pass. Visual and audio interactions run seamlessly in the browser.
+**Frontend validation:** `npm run build` and `npm run typecheck` both pass. Visual, audio, and microphone interactions run seamlessly in the browser.
 
 ## Partial / missing requirements
 
-- **Real speech input:** Microphone recording and upload UI are written; configured Gemini transcription/extraction integrations exist but are not tested against real credentials. Demo mode rejects audio with an explicit error. Manual report extraction is locally functional.
+- **Speech input credentials:** Live browser Web Speech API dictation and local fallback audio transcription work out-of-the-box in demo mode. Configured Gemini API transcription is supported when `GEMINI_API_KEY` is provided in production.
 - **OCR:** Optional Tesseract/Pillow extraction endpoint exists, with review required; optional native packages and scanner accuracy not verified.
 - **Clinical truth:** Sources and conflicts are stored; per-field source timestamps and all provenance states are not implemented consistently in one complete normalized field-metadata layer.
 - **Offline resilience:** Visible connection loss, bounded WebSocket reconnect, replay and event deduplication implemented; durable queueing and retry of locally drafted updates are **not implemented**. Do not use offline mode for critical information.

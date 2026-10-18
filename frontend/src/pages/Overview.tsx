@@ -66,7 +66,7 @@ export default function Overview() {
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
-                Welcome, <strong>{user?.name}</strong>. Connected to Regional Emergency Medical Services. Live AI clinical transcription, Hinglish voice telemetry, and hospital destination routing are active.
+                Welcome, <strong>{user?.name}</strong>. Connected to Regional Emergency Medical Services. Live AI clinical transcription, verbal voice telemetry, and hospital destination routing are active.
               </p>
             </div>
           </div>

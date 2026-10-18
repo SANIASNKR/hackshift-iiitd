@@ -149,7 +149,7 @@ export default function PersonalizationBar({
           <Radio size={14} />
           <span>EMS Radio & Voice Hotline</span>
           <span className="rounded bg-teal-900/60 text-[9px] px-1.5 py-0.5 text-teal-200 uppercase font-mono">
-            Hinglish
+            Live
           </span>
         </button>
       </div>
