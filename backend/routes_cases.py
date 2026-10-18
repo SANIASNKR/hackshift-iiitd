@@ -1,12 +1,12 @@
 from datetime import datetime
 from uuid import uuid4
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from .db import get_db
-from .models import Case, Report, Observation, Conflict, Acceptance, DestinationChange, Event, Hospital
+from .models import Case, Report, Observation, Conflict, Acceptance, DestinationChange, Event, Hospital, AmbulanceLocation
 from .core import current_user,require,get_case_or_404,can_access_case,obj,record,utc
-from .schemas import NewCase,CasePatch,ReportIn,ObservationIn,ConflictResolution,RadioDispatchIn,DoctorDirectiveIn
+from .schemas import NewCase,CasePatch,ReportIn,ObservationIn,ConflictResolution,RadioDispatchIn,DoctorDirectiveIn,AmbulanceLocationIn
 from .ai import extract,transcribe,ClinicalSummary
 from .live import publish
 
@@ -28,7 +28,18 @@ async def create_case(data:NewCase,user=Depends(require('paramedic','coordinator
 def details(case_id:str,user=Depends(current_user),db:Session=Depends(get_db)):
     case=get_case_or_404(case_id,user,db)
     def items(model):return [obj(x) for x in db.query(model).filter_by(case_id=case_id).all()]
-    return {'case':obj(case),'reports':items(Report),'observations':items(Observation),'conflicts':items(Conflict),'acceptances':items(Acceptance),'destination_history':items(DestinationChange),'events':[obj(x) for x in db.query(Event).filter_by(case_id=case_id).order_by(Event.sequence.desc()).limit(100).all()]}
+    locations=[obj(x) for x in db.query(AmbulanceLocation).filter_by(case_id=case_id).order_by(AmbulanceLocation.reported_at.desc()).limit(50).all()]
+    return {'case':obj(case),'reports':items(Report),'observations':items(Observation),'conflicts':items(Conflict),'acceptances':items(Acceptance),'destination_history':items(DestinationChange),'ambulance_location':locations[0] if locations else None,'location_history':locations,'events':[obj(x) for x in db.query(Event).filter_by(case_id=case_id).order_by(Event.sequence.desc()).limit(100).all()]}
+
+@router.post('/{case_id}/ambulance-location',status_code=201)
+async def update_ambulance_location(case_id:str,data:AmbulanceLocationIn,user=Depends(require('paramedic','admin')),db:Session=Depends(get_db)):
+    case=get_case_or_404(case_id,user,db)
+    location=AmbulanceLocation(case_id=case.id,created_by=user.id,**data.model_dump())
+    db.add(location);db.flush()
+    case.updated_at=utc()
+    ev=record(db,'ambulance.location_updated',user,case_id=case.id,hospital_id=case.confirmed_hospital_id or case.intended_hospital_id,payload={'latitude':location.latitude,'longitude':location.longitude,'accuracy_meters':location.accuracy_meters,'speed_mps':location.speed_mps,'heading_degrees':location.heading_degrees,'reported_at':location.reported_at.isoformat()})
+    db.commit();await publish(ev)
+    return obj(location)
 @router.patch('/{case_id}')
 async def update_case(case_id:str,data:CasePatch,user=Depends(require('paramedic','coordinator','admin')),db:Session=Depends(get_db)):
     case=get_case_or_404(case_id,user,db)
@@ -52,15 +63,27 @@ async def submit_report(case_id:str,data:ReportIn,user=Depends(require('paramedi
         raise
     case.updated_at=utc();ev=record(db,event_type,user,case_id=case_id,payload={'report_id':report.id,'review_status':report.review_status})
     db.commit();await publish(ev);return obj(report)
+@router.post('/audio/transcribe')
+async def transcribe_intake_audio(file:UploadFile=File(...),transcript:str=Form(None),user=Depends(require('paramedic','coordinator','admin'))):
+    supported={'audio/webm','audio/wav','audio/x-wav','audio/mpeg','audio/mp4','audio/ogg','audio/mp3'}
+    if file.content_type not in supported:raise HTTPException(415,'Unsupported audio content type')
+    content=await file.read(10*1024*1024+1)
+    if not content or len(content)>10*1024*1024:raise HTTPException(413,'Empty or oversized audio file (limit: 10 MB)')
+    if transcript and transcript.strip():
+        return {'transcript':transcript.strip(),'stored_audio':False,'requires_review':True}
+    res_transcript=await transcribe(content,file.filename or 'recording.webm',file.content_type)
+    return {'transcript':res_transcript,'stored_audio':False,'requires_review':True}
 @router.post('/{case_id}/audio')
-async def audio_report(case_id:str,file:UploadFile=File(...),user=Depends(require('paramedic','coordinator','admin')),db:Session=Depends(get_db)):
+async def audio_report(case_id:str,file:UploadFile=File(...),transcript:str=Form(None),user=Depends(require('paramedic','coordinator','admin')),db:Session=Depends(get_db)):
     get_case_or_404(case_id,user,db)
     supported={'audio/webm','audio/wav','audio/x-wav','audio/mpeg','audio/mp4','audio/ogg','audio/mp3'}
     if file.content_type not in supported:raise HTTPException(415,'Unsupported audio content type')
     content=await file.read(10*1024*1024+1)
     if not content or len(content)>10*1024*1024:raise HTTPException(413,'Empty or oversized audio file (limit: 10 MB)')
-    transcript=await transcribe(content,file.filename or 'recording.webm',file.content_type)
-    return {'transcript':transcript,'stored_audio':False,'requires_review':True}
+    if transcript and transcript.strip():
+        return {'transcript':transcript.strip(),'stored_audio':False,'requires_review':True}
+    res_transcript=await transcribe(content,file.filename or 'recording.webm',file.content_type)
+    return {'transcript':res_transcript,'stored_audio':False,'requires_review':True}
 @router.post('/identity/ocr')
 async def ocr_document(file:UploadFile=File(...),user=Depends(require('paramedic','admin','coordinator'))):
     if file.content_type not in ('image/jpeg','image/png','image/webp'):raise HTTPException(415,'JPEG, PNG or WebP required')
