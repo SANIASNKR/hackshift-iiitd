@@ -162,22 +162,22 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-wrap justify-between items-start gap-4">
+    <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row justify-between sm:items-start gap-3 sm:gap-4">
       <div>
         {tag && (
-          <div className="text-[11px] font-semibold tracking-wider uppercase text-slateText mb-1.5 flex items-center gap-1.5">
+          <div className="text-[10.5px] font-bold tracking-wider uppercase text-slateText mb-1 flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-brand" />
             {tag}
           </div>
         )}
-        <h1 className="page-title">{title}</h1>
+        <h1 className="page-title text-xl sm:text-2xl">{title}</h1>
         {description && (
-          <p className="text-sm text-slateText mt-1.5 max-w-3xl leading-relaxed">
+          <p className="text-xs sm:text-sm text-slateText mt-1 max-w-3xl leading-relaxed">
             {description}
           </p>
         )}
       </div>
-      {children && <div className="flex flex-wrap items-center gap-2.5 pt-1">{children}</div>}
+      {children && <div className="flex flex-wrap items-center gap-2 pt-1">{children}</div>}
     </div>
   );
 }
