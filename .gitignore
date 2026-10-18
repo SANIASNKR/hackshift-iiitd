@@ -10,3 +10,4 @@ dist/
 *.pyc
 coverage/
 *.tsbuildinfo
+*.zip
