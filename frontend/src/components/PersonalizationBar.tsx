@@ -85,13 +85,13 @@ export default function PersonalizationBar({
     <div className="card p-3 sm:p-4 mb-6 bg-gradient-to-r from-white via-slate-50/60 to-white border-slate-200/90 shadow-sm flex flex-wrap items-center justify-between gap-4">
       {/* Human Crew Identity */}
       <div className="flex items-center gap-3.5">
-        <div className={`relative w-11 h-11 rounded-2xl ${meta.bg} ${meta.color} flex items-center justify-center border border-slate-200 font-extrabold text-sm shadow-sm`}>
+        <div className={`relative w-11 h-11 rounded-2xl ${meta.bg} ${meta.color} flex items-center justify-center border border-slate-200 font-extrabold text-sm shadow-sm shrink-0`}>
           <meta.icon size={22} />
           <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-200" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-extrabold text-sm text-ink leading-tight">{meta.title}</h3>
+            <h3 className="font-extrabold text-sm text-charcoal leading-tight">{meta.title}</h3>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${meta.badgeColor}`}>
               Badge #{meta.badge}
             </span>
@@ -108,9 +108,9 @@ export default function PersonalizationBar({
       </div>
 
       {/* Duty Status Switcher & Shift Tracker */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto justify-between sm:justify-end">
         {user?.role === 'paramedic' && (
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold overflow-x-auto no-scrollbar">
             {[
               { id: 'dispatch', label: 'En Route' },
               { id: 'scene', label: 'On Scene' },
@@ -120,10 +120,10 @@ export default function PersonalizationBar({
               <button
                 key={s.id}
                 onClick={() => setDutyStatus(s.id as unknown as typeof dutyStatus)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] transition-all ${
+                className={`px-2.5 py-1.5 rounded-lg text-[11px] transition-all whitespace-nowrap ${
                   dutyStatus === s.id
                     ? 'bg-white text-teal-800 shadow-sm font-bold'
-                    : 'text-slate-500 hover:text-ink'
+                    : 'text-slate-500 hover:text-charcoal'
                 }`}
               >
                 {s.label}
@@ -140,14 +140,14 @@ export default function PersonalizationBar({
         {/* Big Prominent Emergency Voice & Intercom Button */}
         <button
           onClick={onOpenVoiceModal}
-          className="btn bg-gradient-to-r from-teal-700 to-teal-800 text-white hover:from-teal-600 hover:to-teal-700 shadow-md py-2 px-3.5 text-xs font-bold flex items-center gap-2 border border-teal-600 transition-transform active:scale-95"
+          className="btn bg-gradient-to-r from-teal-700 to-teal-800 text-white hover:from-teal-600 hover:to-teal-700 shadow-md py-2 px-3 sm:px-3.5 text-xs font-bold flex items-center gap-2 border border-teal-600 transition-transform active:scale-95"
         >
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
           </span>
           <Radio size={14} />
-          <span>EMS Radio & Voice Hotline</span>
+          <span>EMS Voice Hotline</span>
           <span className="rounded bg-teal-900/60 text-[9px] px-1.5 py-0.5 text-teal-200 uppercase font-mono">
             Live
           </span>
